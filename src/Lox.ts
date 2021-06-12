@@ -35,17 +35,17 @@ export default class Lox {
 
         console.log("=== Create AST ===")
         let parser = new Parser(tokens, this.errorHandler)
-        let expression = parser.parse()
+        let statements = parser.parse()
 
         if (this.errorHandler.hadError) return
 
         console.log("=== Print AST ===")
-        let astDebug = new AstPrinter().print(expression)
+        let astDebug = new AstPrinter().print(statements)
         console.log(astDebug)
 
 
         console.log("=== Interpreting ===")
-        let interpreterOutput = new Interpreter().interpret(expression, this.errorHandler)
+        let interpreterOutput = new Interpreter().interpret(statements, this.errorHandler)
         console.log(interpreterOutput)
     }
 }

@@ -1,19 +1,19 @@
 import Token from "./Token.js";
 
-export enum Types {
+export enum ExprTypes {
     Binary, Grouping, Literal, Unary
 }
 
 interface I {
-    readonly type: Types
+    readonly type: ExprTypes
 }
 
 export abstract class Expr implements I {
-    readonly type: Types
+    readonly type: ExprTypes
 }
 
 export class Binary extends Expr {
-    readonly type = Types.Binary
+    readonly type = ExprTypes.Binary
 
     constructor(
         public left: Expr,
@@ -23,7 +23,7 @@ export class Binary extends Expr {
 }
 
 export class Grouping extends Expr {
-    readonly type = Types.Grouping
+    readonly type = ExprTypes.Grouping
 
     constructor(
         public expression: Expr,
@@ -31,7 +31,7 @@ export class Grouping extends Expr {
 }
 
 export class Literal extends Expr {
-    readonly type = Types.Literal
+    readonly type = ExprTypes.Literal
 
     constructor(
         public value: string | number | boolean | null,
@@ -39,7 +39,7 @@ export class Literal extends Expr {
 }
 
 export class Unary extends Expr {
-    readonly type = Types.Unary
+    readonly type = ExprTypes.Unary
 
     constructor(
         public operator: Token,

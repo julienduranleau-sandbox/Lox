@@ -1,26 +1,50 @@
-import { Expr, Binary, Grouping, Literal, Unary, Types } from "./Expr.js"
+import { Expr, Binary, Grouping, Literal, Unary, ExprTypes } from "./Expr.js"
 import TokenType from "./TokenType.js"
 import Token from "./Token.js"
 import ErrorHandler, { LoxRuntimeError } from "./ErrorHandler.js"
+import { Expression, Print, Stmt, StmtTypes } from "./Stmt.js"
 
 export default class Interpreter {
 
-    interpret(expr: Expr | null, errorHandler: ErrorHandler): any {
+    interpret(statements: Stmt[], errorHandler: ErrorHandler): any {
         try {
-            return this.stringify(this.evaluate(expr))
+            for (let statement of statements) {
+                this.execute(statement)
+            }
         } catch (error) {
             errorHandler.runtimeError(error)
         }
+    }
+
+    execute(statement: Stmt) {
+        switch (statement.type) {
+            case StmtTypes.Expression: return this.executeExpressionStmt(statement as Expression)
+            case StmtTypes.Print: return this.executePrintStmt(statement as Print)
+        }
+    }
+
+    executeExpressionStmt(stmt: Expression): null {
+        this.evaluate(stmt.expression)
+        return null
+    }
+
+    executePrintStmt(stmt: Print): null {
+        let value = this.stringify(this.evaluate(stmt.expression))
+        let htmlTag = document.createElement("p")
+        htmlTag.classList.add("print")
+        htmlTag.textContent = value
+        document.body.append(htmlTag)
+        return null
     }
 
     evaluate(expr: Expr | null): any {
         if (expr === null) return ""
 
         switch (expr.type) {
-            case Types.Binary: return this.evaluateBinaryExpr(expr as Binary)
-            case Types.Grouping: return this.evaluateGroupingExpr(expr as Grouping)
-            case Types.Literal: return this.evaluateLiteralExpr(expr as Literal)
-            case Types.Unary: return this.evaluateUnaryExpr(expr as Unary)
+            case ExprTypes.Binary: return this.evaluateBinaryExpr(expr as Binary)
+            case ExprTypes.Grouping: return this.evaluateGroupingExpr(expr as Grouping)
+            case ExprTypes.Literal: return this.evaluateLiteralExpr(expr as Literal)
+            case ExprTypes.Unary: return this.evaluateUnaryExpr(expr as Unary)
         }
     }
 

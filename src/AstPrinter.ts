@@ -1,14 +1,41 @@
-import { Expr, Binary, Grouping, Literal, Unary, Types } from "./Expr.js"
+import { Expr, Binary, Grouping, Literal, Unary, ExprTypes } from "./Expr.js"
+import { Expression, Print, Stmt, StmtTypes } from "./Stmt.js"
 
 export default class AstPrinter {
-    print(expr: Expr | null): string {
+    print(statements: Stmt[]): string {
+        let s = ""
+
+        for (let statement of statements) {
+            switch (statement.type) {
+                case StmtTypes.Expression:
+                    s += this.printExpressionStmt(statement as Expression)
+                    break
+                case StmtTypes.Print:
+                    s += this.printPrintStmt(statement as Print)
+                    break
+            }
+            s += " "
+        }
+
+        return s
+    }
+
+    printExpressionStmt(stmt: Expression): string {
+        return this.printExpression(stmt.expression)
+    }
+
+    printPrintStmt(stmt: Print): string {
+        return this.parenthesize("print", stmt.expression)
+    }
+
+    printExpression(expr: Expr): string {
         if (expr === null) return ""
 
         switch (expr.type) {
-            case Types.Binary: return this.printBinaryExpr(expr as Binary)
-            case Types.Grouping: return this.printGroupingExpr(expr as Grouping)
-            case Types.Literal: return this.printLiteralExpr(expr as Literal)
-            case Types.Unary: return this.printUnaryExpr(expr as Unary)
+            case ExprTypes.Binary: return this.printBinaryExpr(expr as Binary)
+            case ExprTypes.Grouping: return this.printGroupingExpr(expr as Grouping)
+            case ExprTypes.Literal: return this.printLiteralExpr(expr as Literal)
+            case ExprTypes.Unary: return this.printUnaryExpr(expr as Unary)
         }
     }
 
@@ -34,7 +61,7 @@ export default class AstPrinter {
 
         for (let expr of exprs) {
             s += " "
-            s += this.print(expr)
+            s += this.printExpression(expr)
         }
 
         return s + ")"
