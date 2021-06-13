@@ -1,7 +1,8 @@
 import { Expr } from "./Expr.js";
+import Token from "./Token.js";
 
 export enum StmtTypes {
-    Expression, Print
+    Expression, Print, Var, Block
 }
 
 interface I {
@@ -25,5 +26,22 @@ export class Print extends Stmt {
 
     constructor(
         public expression: Expr,
+    ) { super() }
+}
+
+export class Var extends Stmt {
+    readonly type = StmtTypes.Var
+
+    constructor(
+        public name: Token,
+        public initializer: Expr | null,
+    ) { super() }
+}
+
+export class Block extends Stmt {
+    readonly type = StmtTypes.Block
+
+    constructor(
+        public statements: Stmt[],
     ) { super() }
 }

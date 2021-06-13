@@ -1,7 +1,8 @@
 import Lox from './Lox.js'
 
 let lox = new Lox()
-lox.run('print "Bob" + "Zok";1+5;')
+lox.runFile("sample.lox")
+// lox.run('print "Bob" + "Zok";')
 
 // @ts-ignore
 window.lox = lox.run.bind(lox)

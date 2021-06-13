@@ -117,7 +117,7 @@ export default class Scanner {
         return this.source[this.current + 1]
     }
 
-    addToken(type: TokenType, literal: string = '') {
+    addToken(type: TokenType, literal: string | number = '') {
         let text = this.source.substring(this.start, this.current)
         this.tokens.push(new Token(type, text, literal, this.line))
     }
@@ -155,8 +155,7 @@ export default class Scanner {
         }
 
         let value = this.source.substring(this.start, this.current)
-        // TODO Convert
-        this.addToken(TokenType.NUMBER, value)
+        this.addToken(TokenType.NUMBER, parseFloat(value))
     }
 
     identifier() {

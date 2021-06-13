@@ -1,6 +1,6 @@
 import ErrorHandler from "./ErrorHandler.js";
-import { Binary, Expr, Grouping, Literal, Unary } from "./Expr.js";
-import { Expression, Print, Stmt } from "./Stmt.js";
+import { Assign, Binary, Expr, Grouping, Literal, Unary, Variable } from "./Expr.js";
+import { Block, Expression, Print, Stmt, Var } from "./Stmt.js";
 import Token from "./Token.js";
 import TokenType from "./TokenType.js";
 
@@ -15,25 +15,64 @@ export default class Parser {
     }
 
     parse(): Stmt[] {
-        // try {
-        //     return this.expression()
-        // } catch (error) {
-        //     return null
-        // }
         let statements: Stmt[] = []
         while (!this.isAtEnd()) {
-            statements.push(this.statement())
+            let stmt: Stmt | null = this.declaration()
+            if (stmt !== null) {
+                statements.push(stmt)
+            }
         }
 
         return statements
+    }
+
+    declaration(): Stmt | null {
+        try {
+            if (this.match(TokenType.VAR)) {
+                return this.varDeclaration()
+            }
+
+            return this.statement()
+        } catch (error) {
+            this.synchronize()
+            return null
+        }
     }
 
     statement(): Stmt {
         if (this.match(TokenType.PRINT)) {
             return this.printStatement()
         }
+        if (this.match(TokenType.LEFT_BRACE)) {
+            return new Block(this.block())
+        }
 
         return this.expressionStatement()
+    }
+
+    block(): Stmt[] {
+        let statements: Stmt[] = []
+
+        while (!this.check(TokenType.RIGHT_BRACE) && !this.isAtEnd()) {
+            let declaration = this.declaration()
+            if (declaration !== null) statements.push(declaration)
+        }
+
+        this.consume(TokenType.RIGHT_BRACE, "Expect '}' after block")
+
+        return statements
+    }
+
+    varDeclaration(): Stmt {
+        let name = this.consume(TokenType.IDENTIFIER, "Expect variable name.")
+
+        let initializer: Expr | null = null
+        if (this.match(TokenType.EQUAL)) {
+            initializer = this.expression()
+        }
+
+        this.consume(TokenType.SEMICOLON, "Expect ';' after variable declaration")
+        return new Var(name, initializer)
     }
 
     printStatement(): Stmt {
@@ -49,7 +88,25 @@ export default class Parser {
     }
 
     expression(): Expr {
-        return this.equality()
+        return this.assignment()
+    }
+
+    assignment(): Expr {
+        let expr = this.equality()
+
+        if (this.match(TokenType.EQUAL)) {
+            let equals = this.previous()
+            let value = this.assignment()
+
+            if (expr instanceof Variable) {
+                let name = expr.name
+                return new Assign(name, value)
+            }
+
+            this.error(equals, "Invalid assignment target.")
+        }
+
+        return expr
     }
 
     equality(): Expr {
@@ -97,6 +154,10 @@ export default class Parser {
 
         if (this.match(TokenType.NUMBER, TokenType.STRING)) {
             return new Literal(this.previous().literal)
+        }
+
+        if (this.match(TokenType.IDENTIFIER)) {
+            return new Variable(this.previous())
         }
 
         if (this.match(TokenType.LEFT_PAREN)) {
@@ -165,5 +226,28 @@ export default class Parser {
 
     isAtEnd(): boolean {
         return this.peek().type == TokenType.EOF
+    }
+
+    synchronize() {
+        this.advance()
+
+        let synchronizable = [
+            TokenType.CLASS,
+            TokenType.FUN,
+            TokenType.VAR,
+            TokenType.FOR,
+            TokenType.IF,
+            TokenType.WHILE,
+            TokenType.PRINT,
+            TokenType.RETURN,
+        ]
+
+        while (!this.isAtEnd()) {
+            if (this.previous().type === TokenType.SEMICOLON) return
+
+            if (synchronizable.includes(this.peek().type)) return
+        }
+
+        this.advance()
     }
 }

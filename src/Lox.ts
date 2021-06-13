@@ -13,7 +13,7 @@ export default class Lox {
     }
 
     async runFile(url: string) {
-        await fetch(url).then(r => r.text()).then(this.run)
+        await fetch(url).then(r => r.text()).then(this.run.bind(this))
 
         if (this.errorHandler.hadError) {
             console.log("Exited with errors")
@@ -27,25 +27,33 @@ export default class Lox {
     }
 
     run(source: string) {
-        console.log("=== Tokens ===")
+        // === Tokens
         let scanner = new Scanner(source, this.errorHandler)
         let tokens = scanner.scanTokens()
         // for (let token of tokens) console.log(token.toString())
 
 
-        console.log("=== Create AST ===")
+        // === Create AST
         let parser = new Parser(tokens, this.errorHandler)
         let statements = parser.parse()
 
+        if (this.errorHandler.hadError) {
+            console.warn("Lox had a parsing error")
+        }
+
         if (this.errorHandler.hadError) return
 
-        console.log("=== Print AST ===")
+        // === Print AST
         let astDebug = new AstPrinter().print(statements)
         console.log(astDebug)
 
 
-        console.log("=== Interpreting ===")
+        // === Interpreting
         let interpreterOutput = new Interpreter().interpret(statements, this.errorHandler)
-        console.log(interpreterOutput)
+        console.log("> " + interpreterOutput)
+
+        if (this.errorHandler.hadRuntimeError) {
+            console.warn("Lox had a runtime error")
+        }
     }
 }

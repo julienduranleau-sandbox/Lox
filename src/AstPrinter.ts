@@ -1,5 +1,5 @@
-import { Expr, Binary, Grouping, Literal, Unary, ExprTypes } from "./Expr.js"
-import { Expression, Print, Stmt, StmtTypes } from "./Stmt.js"
+import { Expr, Binary, Grouping, Literal, Unary, ExprTypes, Variable, Assign } from "./Expr.js"
+import { Block, Expression, Print, Stmt, StmtTypes, Var } from "./Stmt.js"
 
 export default class AstPrinter {
     print(statements: Stmt[]): string {
@@ -13,11 +13,21 @@ export default class AstPrinter {
                 case StmtTypes.Print:
                     s += this.printPrintStmt(statement as Print)
                     break
+                case StmtTypes.Var:
+                    s += this.printVarStmt(statement as Var)
+                    break
+                case StmtTypes.Block:
+                    s += this.printBlockStmt(statement as Block)
+                    break
             }
             s += " "
         }
 
         return s
+    }
+
+    printBlockStmt(stmt: Block): string {
+        return `({ ${this.print(stmt.statements)} })`
     }
 
     printExpressionStmt(stmt: Expression): string {
@@ -28,6 +38,14 @@ export default class AstPrinter {
         return this.parenthesize("print", stmt.expression)
     }
 
+    printVarStmt(stmt: Var): string {
+        if (stmt.initializer !== null) {
+            return this.parenthesize(`set_var:${stmt.name.lexeme} =`, stmt.initializer)
+        } else {
+            return this.parenthesize(`set_var:${stmt.name.lexeme}`)
+        }
+    }
+
     printExpression(expr: Expr): string {
         if (expr === null) return ""
 
@@ -36,7 +54,17 @@ export default class AstPrinter {
             case ExprTypes.Grouping: return this.printGroupingExpr(expr as Grouping)
             case ExprTypes.Literal: return this.printLiteralExpr(expr as Literal)
             case ExprTypes.Unary: return this.printUnaryExpr(expr as Unary)
+            case ExprTypes.Variable: return this.printVariableExpr(expr as Variable)
+            case ExprTypes.Assign: return this.printAssignExpr(expr as Assign)
         }
+    }
+
+    printAssignExpr(expr: Assign): string {
+        return this.parenthesize(`var:${expr.name.lexeme} =`, expr.value)
+    }
+
+    printVariableExpr(expr: Variable): string {
+        return this.parenthesize(`var:${expr.name.lexeme}`)
     }
 
     printBinaryExpr(expr: Binary): string {
@@ -49,6 +77,7 @@ export default class AstPrinter {
 
     printLiteralExpr(expr: Literal): string {
         if (expr.value == null) return "nil"
+        if (typeof expr.value === "string") return `"${expr.value}"`
         return expr.value.toString()
     }
 

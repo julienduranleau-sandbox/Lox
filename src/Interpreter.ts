@@ -1,10 +1,13 @@
-import { Expr, Binary, Grouping, Literal, Unary, ExprTypes } from "./Expr.js"
+import { Expr, Binary, Grouping, Literal, Unary, ExprTypes, Variable, Assign } from "./Expr.js"
 import TokenType from "./TokenType.js"
 import Token from "./Token.js"
 import ErrorHandler, { LoxRuntimeError } from "./ErrorHandler.js"
-import { Expression, Print, Stmt, StmtTypes } from "./Stmt.js"
+import { Block, Expression, Print, Stmt, StmtTypes, Var } from "./Stmt.js"
+import Environment from "./Environment.js"
 
 export default class Interpreter {
+
+    environment: Environment = new Environment()
 
     interpret(statements: Stmt[], errorHandler: ErrorHandler): any {
         try {
@@ -16,10 +19,12 @@ export default class Interpreter {
         }
     }
 
-    execute(statement: Stmt) {
+    execute(statement: Stmt): null {
         switch (statement.type) {
             case StmtTypes.Expression: return this.executeExpressionStmt(statement as Expression)
             case StmtTypes.Print: return this.executePrintStmt(statement as Print)
+            case StmtTypes.Var: return this.executeVarStmt(statement as Var)
+            case StmtTypes.Block: return this.executeBlockStmt(statement as Block)
         }
     }
 
@@ -37,6 +42,37 @@ export default class Interpreter {
         return null
     }
 
+    executeVarStmt(stmt: Var): null {
+        let value: any = null
+
+        if (stmt.initializer !== null) {
+            value = this.evaluate(stmt.initializer)
+        }
+
+        this.environment.define(stmt.name.lexeme, value)
+        return null
+    }
+
+    executeBlockStmt(stmt: Block): null {
+        this.executeBlock(stmt.statements, new Environment(this.environment))
+        return null
+    }
+
+    executeBlock(statements: Stmt[], environment: Environment): void {
+        let previousEnv = this.environment
+
+        // caught by the interpret() function
+        try {
+            this.environment = environment
+
+            for (let statement of statements) {
+                this.execute(statement)
+            }
+        } finally {
+            this.environment = previousEnv
+        }
+    }
+
     evaluate(expr: Expr | null): any {
         if (expr === null) return ""
 
@@ -45,7 +81,19 @@ export default class Interpreter {
             case ExprTypes.Grouping: return this.evaluateGroupingExpr(expr as Grouping)
             case ExprTypes.Literal: return this.evaluateLiteralExpr(expr as Literal)
             case ExprTypes.Unary: return this.evaluateUnaryExpr(expr as Unary)
+            case ExprTypes.Variable: return this.evaluateVariableExpr(expr as Variable)
+            case ExprTypes.Assign: return this.evaluateAssignExpr(expr as Assign)
         }
+    }
+
+    evaluateAssignExpr(expr: Assign): any {
+        let value = this.evaluate(expr.value)
+        this.environment.assign(expr.name, value)
+        return value
+    }
+
+    evaluateVariableExpr(expr: Variable): any {
+        return this.environment.get(expr.name)
     }
 
     evaluateBinaryExpr(expr: Binary): any {

@@ -1,7 +1,7 @@
 import Token from "./Token.js";
 
 export enum ExprTypes {
-    Binary, Grouping, Literal, Unary
+    Binary, Grouping, Literal, Unary, Variable, Assign
 }
 
 interface I {
@@ -44,5 +44,22 @@ export class Unary extends Expr {
     constructor(
         public operator: Token,
         public right: Expr
+    ) { super() }
+}
+
+export class Variable extends Expr {
+    readonly type = ExprTypes.Variable
+
+    constructor(
+        public name: Token,
+    ) { super() }
+}
+
+export class Assign extends Expr {
+    readonly type = ExprTypes.Assign
+
+    constructor(
+        public name: Token,
+        public value: Expr,
     ) { super() }
 }
