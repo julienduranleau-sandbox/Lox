@@ -5,16 +5,17 @@ import Token from "./Token.js";
 import TokenType from "./TokenType.js";
 
 export default class Parser {
-    tokens: Token[]
+    tokens: Token[] = []
     current: number = 0
     errorHandler: ErrorHandler
 
-    constructor(tokens: Token[], errorHandler: ErrorHandler) {
-        this.tokens = tokens
+    constructor(errorHandler: ErrorHandler) {
         this.errorHandler = errorHandler
     }
 
-    parse(): Stmt[] {
+    parse(tokens: Token[]): Stmt[] {
+        this.tokens = tokens
+
         let statements: Stmt[] = []
         while (!this.isAtEnd()) {
             let stmt: Stmt | null = this.declaration()

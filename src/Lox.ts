@@ -2,6 +2,7 @@ import AstPrinter from './AstPrinter.js'
 import ErrorHandler from './ErrorHandler.js'
 import Interpreter from './Interpreter.js'
 import Parser from './Parser.js'
+import Resolver from './Resolver.js'
 import Scanner from './Scanner.js'
 
 export default class Lox {
@@ -27,30 +28,38 @@ export default class Lox {
     }
 
     run(source: string) {
-        // === Tokens
-        let scanner = new Scanner(source, this.errorHandler)
-        let tokens = scanner.scanTokens()
-        // for (let token of tokens) console.log(token.toString())
+        const scanner = new Scanner(source, this.errorHandler)
+        const parser = new Parser(this.errorHandler)
+        const interpreter = new Interpreter()
+        const resolver = new Resolver(interpreter, this.errorHandler)
 
+        // === Tokens
+        let tokens = scanner.scanTokens()
 
         // === Create AST
-        let parser = new Parser(tokens, this.errorHandler)
-        let statements = parser.parse()
-
-        if (this.errorHandler.hadError) {
-            console.warn("Lox had a parsing error")
-        }
-
-        if (this.errorHandler.hadError) return
+        let statements = parser.parse(tokens)
 
         // === Print AST
         let astDebug = new AstPrinter().prettyPrint(statements)
         console.log(astDebug)
 
+        // === Check for valid AST to continue
+        if (this.errorHandler.hadError) {
+            console.warn("Lox had a parsing error")
+            return
+        }
+
+        // === Resolver
+        resolver.resolve(statements)
+
+        // === Check for valid Resolution to continue
+        if (this.errorHandler.hadError) {
+            console.warn("Lox had a resolution error")
+            return
+        }
 
         // === Interpreting
-        let interpreterOutput = new Interpreter().interpret(statements, this.errorHandler)
-        console.log("> " + interpreterOutput)
+        interpreter.interpret(statements, this.errorHandler)
 
         if (this.errorHandler.hadRuntimeError) {
             console.warn("Lox had a runtime error")

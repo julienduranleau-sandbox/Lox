@@ -10,6 +10,10 @@ import LoxFn from "./LoxFn.js"
 export default class Interpreter {
 
     globals: Environment = new Environment()
+    locals: { names: Expr[], depths: number[] } = {
+        names: [],
+        depths: []
+    }
     environment: Environment = this.globals
 
     constructor() {
@@ -173,12 +177,22 @@ export default class Interpreter {
 
     evaluateAssignExpr(expr: Assign): any {
         let value = this.evaluate(expr.value)
-        this.environment.assign(expr.name, value)
+
+        let idx = this.locals.names.indexOf(expr)
+
+        if (idx !== -1) {
+            let depth = this.locals.depths[idx]
+            this.environment.assignAt(depth, expr.name, value)
+        } else {
+            this.globals.assign(expr.name, value)
+        }
+
         return value
     }
 
     evaluateVariableExpr(expr: Variable): any {
-        return this.environment.get(expr.name)
+        return this.lookupVariable(expr.name, expr)
+        // return this.environment.get(expr.name)
     }
 
     evaluateBinaryExpr(expr: Binary): any {
@@ -264,14 +278,22 @@ export default class Interpreter {
     stringify(value: any): string {
         if (value === null) return "nil"
 
-        if (!isNaN(value)) {
-            let t: string = (value).toString()
-            // if (t.substr(-2) == ".0") {
-            //     t = t.substring(0, -2)
-            // }
-            return t
-        }
-
         return value.toString()
+    }
+
+    resolve(expr: Expr, depth: number) {
+        this.locals.names.push(expr)
+        this.locals.depths.push(depth)
+    }
+
+    lookupVariable(name: Token, expr: Expr) {
+        let idx = this.locals.names.indexOf(expr)
+
+        if (idx !== -1) {
+            let depth = this.locals.depths[idx]
+            return this.environment.getAt(depth, name)
+        } else {
+            return this.globals.get(name)
+        }
     }
 }
