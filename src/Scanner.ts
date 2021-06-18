@@ -25,7 +25,7 @@ export default class Scanner {
 
         this.tokens.push(new Token(TokenType.EOF, "", "\0", this.line))
 
-        return this.tokens;
+        return this.tokens
     }
 
     scanToken() {
@@ -95,7 +95,7 @@ export default class Scanner {
     advance(): string {
         let c = this.source[this.current]
         this.current += 1
-        return c;
+        return c
     }
 
     match(expected: string): boolean {
@@ -129,7 +129,7 @@ export default class Scanner {
     string() {
         while (this.peek() != '"' && !this.isAtEOF()) {
             if (this.peek() == '\n') {
-                this.line += 1;
+                this.line += 1
             }
             this.advance()
         }

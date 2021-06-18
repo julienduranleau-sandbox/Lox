@@ -1,9 +1,7 @@
-@import url('https://fonts.googleapis.com/css2?family=Lato&display=swap');
-
 body {
     background: #222;
     color: #fff;
-    font-family: 'Lato', sans-serif;
+    font-family: 'Hack';
     font-size: 20px;
 }
 .print {

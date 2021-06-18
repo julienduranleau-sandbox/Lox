@@ -1,6 +1,6 @@
 import ErrorHandler from "./ErrorHandler.js";
-import { Assign, Binary, Expr, Grouping, Literal, Unary, Variable } from "./Expr.js";
-import { Block, Expression, Print, Stmt, Var } from "./Stmt.js";
+import { Assign, Binary, Call, Expr, Grouping, Literal, Logical, Unary, Variable } from "./Expr.js";
+import { Block, Expression, Fn, If, Print, Return, Stmt, Var, While } from "./Stmt.js";
 import Token from "./Token.js";
 import TokenType from "./TokenType.js";
 
@@ -40,14 +40,129 @@ export default class Parser {
     }
 
     statement(): Stmt {
-        if (this.match(TokenType.PRINT)) {
-            return this.printStatement()
-        }
-        if (this.match(TokenType.LEFT_BRACE)) {
-            return new Block(this.block())
-        }
+        if (this.match(TokenType.PRINT)) return this.printStatement()
+        if (this.match(TokenType.LEFT_BRACE)) return new Block(this.block())
+        if (this.match(TokenType.IF)) return this.ifStatement()
+        if (this.match(TokenType.WHILE)) return this.whileStatement()
+        if (this.match(TokenType.FOR)) return this.forStatement()
+        if (this.match(TokenType.FUN)) return this.functionStatement("function")
+        if (this.match(TokenType.RETURN)) return this.returnStatement()
 
         return this.expressionStatement()
+    }
+
+    returnStatement(): Stmt {
+        let keyword = this.previous()
+        let value: Expr | null = null
+
+        if (!this.check(TokenType.SEMICOLON)) {
+            value = this.expression()
+        }
+
+        this.consume(TokenType.SEMICOLON, `Expect ';' after return value.`)
+        return new Return(keyword, value)
+    }
+
+    functionStatement(type: string): Stmt {
+        let name = this.consume(TokenType.IDENTIFIER, `Expect ${type} name`)
+        this.consume(TokenType.LEFT_PAREN, `Expect '(' after ${type} name.`)
+
+        let params: Token[] = []
+
+        if (!this.check(TokenType.RIGHT_PAREN)) {
+            do {
+                params.push(this.consume(TokenType.IDENTIFIER, `Expect paramter name`))
+            } while (this.match(TokenType.COMMA))
+        }
+
+        this.consume(TokenType.RIGHT_PAREN, `Expect ')' after ${type} parameters.`)
+        this.consume(TokenType.LEFT_BRACE, `Expect '{' before ${type} body.`)
+
+        let body = this.block()
+
+        return new Fn(name, params, body)
+    }
+
+    forStatement(): Stmt {
+        this.consume(TokenType.LEFT_PAREN, "Expect '(' after 'for'.")
+
+        // for ( ______; ; )
+        let initializer: Stmt | null = null
+
+        if (this.match(TokenType.SEMICOLON)) {
+            initializer = null
+        } else if (this.match(TokenType.VAR)) {
+            initializer = this.varDeclaration()
+        } else {
+            initializer = this.expressionStatement()
+        }
+
+        // for ( ;______; )
+        let condition: Expr | null = null
+        if (this.check(TokenType.SEMICOLON) == false) {
+            condition = this.expression()
+        }
+        this.consume(TokenType.SEMICOLON, "Expect ';' after for loop condition.")
+
+        // for ( ; ;______ )
+        let increment: Expr | null = null
+        if (!this.check(TokenType.RIGHT_BRACE)) {
+            increment = this.expression()
+        }
+
+        this.consume(TokenType.RIGHT_PAREN, "Expect ')' after 'for' condition.")
+
+        let body: Stmt = this.statement()
+
+        // If there's an increment, add it at the end of the body
+        if (increment !== null) {
+            body = new Block([
+                body,
+                new Expression(increment)
+            ])
+        }
+
+        // Create the while loop with the condition or true
+        if (condition === null) {
+            condition = new Literal(true)
+        }
+
+        body = new While(condition, body)
+
+        // Add scoped initializer before the while loop
+        if (initializer !== null) {
+            body = new Block([
+                initializer,
+                body
+            ])
+        }
+
+        return body
+    }
+
+    whileStatement(): Stmt {
+        this.consume(TokenType.LEFT_PAREN, "Expect '(' after 'while'.")
+        let condition = this.expression()
+        this.consume(TokenType.RIGHT_PAREN, "Expect ')' after 'while' condition.")
+
+        let body: Stmt = this.statement()
+
+        return new While(condition, body)
+    }
+
+    ifStatement(): Stmt {
+        this.consume(TokenType.LEFT_PAREN, "Expect '(' after 'if'.")
+        let condition = this.expression()
+        this.consume(TokenType.RIGHT_PAREN, "Expect ')' after 'if' condition.")
+
+        let thenBranch: Stmt = this.statement()
+        let elseBranch: Stmt | null = null
+
+        if (this.match(TokenType.ELSE)) {
+            elseBranch = this.statement()
+        }
+
+        return new If(condition, thenBranch, elseBranch)
     }
 
     block(): Stmt[] {
@@ -92,7 +207,7 @@ export default class Parser {
     }
 
     assignment(): Expr {
-        let expr = this.equality()
+        let expr = this.or()
 
         if (this.match(TokenType.EQUAL)) {
             let equals = this.previous()
@@ -109,32 +224,28 @@ export default class Parser {
         return expr
     }
 
+    or(): Expr {
+        return this.leftAssociative(this.and, [TokenType.OR], Logical)
+    }
+
+    and(): Expr {
+        return this.leftAssociative(this.equality, [TokenType.AND], Logical)
+    }
+
     equality(): Expr {
-        return this.leftAssociative(
-            this.comparison,
-            [TokenType.BANG_EQUAL, TokenType.EQUAL_EQUAL]
-        )
+        return this.leftAssociative(this.comparison, [TokenType.BANG_EQUAL, TokenType.EQUAL_EQUAL])
     }
 
     comparison(): Expr {
-        return this.leftAssociative(
-            this.term,
-            [TokenType.GREATER, TokenType.GREATER_EQUAL, TokenType.LESS, TokenType.LESS_EQUAL]
-        )
+        return this.leftAssociative(this.term, [TokenType.GREATER, TokenType.GREATER_EQUAL, TokenType.LESS, TokenType.LESS_EQUAL])
     }
 
     term(): Expr {
-        return this.leftAssociative(
-            this.factor,
-            [TokenType.MINUS, TokenType.PLUS]
-        )
+        return this.leftAssociative(this.factor, [TokenType.MINUS, TokenType.PLUS])
     }
 
     factor(): Expr {
-        return this.leftAssociative(
-            this.unary,
-            [TokenType.SLASH, TokenType.STAR]
-        )
+        return this.leftAssociative(this.unary, [TokenType.SLASH, TokenType.STAR])
     }
 
     unary(): Expr {
@@ -144,7 +255,37 @@ export default class Parser {
             return new Unary(operator, right)
         }
 
-        return this.primary()
+        return this.call()
+    }
+
+    call(): Expr {
+        let expr: Expr = this.primary()
+
+        // To match chained calls
+        // eg: getTask("run")()
+        while (true) {
+            if (this.match(TokenType.LEFT_PAREN)) {
+                expr = this.finishCall(expr)
+            } else {
+                break
+            }
+        }
+
+        return expr
+    }
+
+    finishCall(callee: Expr): Expr {
+        let args: Expr[] = []
+
+        if (!this.check(TokenType.RIGHT_PAREN)) {
+            do {
+                args.push(this.expression())
+            } while (this.match(TokenType.COMMA))
+        }
+
+        let paren = this.consume(TokenType.RIGHT_PAREN, "Expect ')' after function arguments.")
+
+        return new Call(callee, paren, args)
     }
 
     primary(): Expr {
@@ -169,13 +310,13 @@ export default class Parser {
         this.error(this.peek(), "Expect expression.")
     }
 
-    leftAssociative(fn: Function, matchTokens: TokenType[]): Expr {
+    leftAssociative(fn: Function, matchTokens: TokenType[], exprClass: any = Binary): Expr {
         let expr: Expr = fn.call(this)
 
         while (this.match(...matchTokens)) {
             let operator = this.previous()
             let right: Expr = fn.call(this)
-            expr = new Binary(expr, operator, right)
+            expr = new exprClass(expr, operator, right)
         }
 
         return expr

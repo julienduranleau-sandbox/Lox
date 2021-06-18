@@ -1,0 +1,21 @@
+var p1 = "D3l";
+var p2 = "phes";
+var p3 = p1 + p2;
+{
+    var p2 = "fez";
+    p3 = p1 + p2;
+}
+
+print p3;
+
+if (p3 == "D3lfez") {
+    print "Yes";
+} else {
+    print "No";
+}
+
+var i = 0;
+while (i <= 10) {
+    print i;
+    i = i + 1;
+}

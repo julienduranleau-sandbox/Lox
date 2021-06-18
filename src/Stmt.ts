@@ -2,7 +2,7 @@ import { Expr } from "./Expr.js";
 import Token from "./Token.js";
 
 export enum StmtTypes {
-    Expression, Print, Var, Block
+    Expression, Print, Var, Block, If, While, Fn, Return
 }
 
 interface I {
@@ -43,5 +43,44 @@ export class Block extends Stmt {
 
     constructor(
         public statements: Stmt[],
+    ) { super() }
+}
+
+export class If extends Stmt {
+    readonly type = StmtTypes.If
+
+    constructor(
+        public condition: Expr,
+        public thenBranch: Stmt,
+        public elseBranch: Stmt | null,
+    ) { super() }
+}
+
+export class While extends Stmt {
+    readonly type = StmtTypes.While
+
+    constructor(
+        public condition: Expr,
+        public body: Stmt,
+    ) { super() }
+}
+
+export class Fn extends Stmt {
+    readonly type = StmtTypes.Fn
+
+    constructor(
+        public name: Token,
+        public params: Token[],
+        public body: Stmt[],
+    ) { super() }
+}
+
+
+export class Return extends Stmt {
+    readonly type = StmtTypes.Return
+
+    constructor(
+        public keyword: Token,
+        public value: Expr | null,
     ) { super() }
 }

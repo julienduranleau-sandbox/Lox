@@ -1,5 +1,5 @@
-import { Expr, Binary, Grouping, Literal, Unary, ExprTypes, Variable, Assign } from "./Expr.js"
-import { Block, Expression, Print, Stmt, StmtTypes, Var } from "./Stmt.js"
+import { Expr, Binary, Grouping, Literal, Unary, ExprTypes, Variable, Assign, Logical, Call } from "./Expr.js"
+import { Block, Expression, Fn, If, Print, Return, Stmt, StmtTypes, Var, While } from "./Stmt.js"
 
 export default class AstPrinter {
     print(statements: Stmt[]): string {
@@ -19,6 +19,18 @@ export default class AstPrinter {
                 case StmtTypes.Block:
                     s += this.printBlockStmt(statement as Block)
                     break
+                case StmtTypes.If:
+                    s += this.printIfStmt(statement as If)
+                    break
+                case StmtTypes.While:
+                    s += this.printWhileStmt(statement as While)
+                    break
+                case StmtTypes.Fn:
+                    s += this.printFnStmt(statement as Fn)
+                    break
+                case StmtTypes.Return:
+                    s += this.printReturnStmt(statement as Return)
+                    break
             }
             s += " "
         }
@@ -26,8 +38,33 @@ export default class AstPrinter {
         return s
     }
 
+    prettyPrint(statements: Stmt[]): string {
+        let s = this.print(statements)
+        const blockStart = "(block"
+        const blockEnd = "endblock)"
+
+        let indent = 0
+
+        for (let i = 0; i < s.length; i++) {
+            if (s.substr(i, blockStart.length) === blockStart) {
+                indent += 1
+                let newline = "\n" + "  ".repeat(indent)
+                s = s.substr(0, i + blockStart.length) + newline + s.substr(i + blockStart.length + 1)
+            }
+            if (s.substr(i, blockEnd.length) === blockEnd) {
+                indent -= 1
+                let newline = "\n" + "  ".repeat(indent) + ")" + "\n" + "  ".repeat(indent)
+                s = s.substr(0, i) + newline + s.substr(i + blockEnd.length + 1)
+            }
+        }
+
+        return s
+    }
+
+
+
     printBlockStmt(stmt: Block): string {
-        return `({ ${this.print(stmt.statements)} })`
+        return `(block ${this.print(stmt.statements)} endblock)`
     }
 
     printExpressionStmt(stmt: Expression): string {
@@ -46,6 +83,30 @@ export default class AstPrinter {
         }
     }
 
+    printIfStmt(stmt: If): string {
+        if (stmt.elseBranch !== null) {
+            return `( if ${this.printExpression(stmt.condition)} then ${this.print([stmt.thenBranch])} else ${this.print([stmt.elseBranch])} })`
+        } else {
+            return `( if ${this.printExpression(stmt.condition)} then ${this.print([stmt.thenBranch])}`
+        }
+    }
+
+    printWhileStmt(stmt: While): string {
+        return `( while ${this.printExpression(stmt.condition)} then ${this.print([stmt.body])}`
+    }
+
+    printFnStmt(stmt: Fn): string {
+        return `( fn ${stmt.name.lexeme} )`
+    }
+
+    printReturnStmt(stmt: Return): string {
+        if (stmt.value !== null) {
+            return this.parenthesize(`return`, stmt.value)
+        } else {
+            return this.parenthesize(`return`)
+        }
+    }
+
     printExpression(expr: Expr): string {
         if (expr === null) return ""
 
@@ -56,7 +117,17 @@ export default class AstPrinter {
             case ExprTypes.Unary: return this.printUnaryExpr(expr as Unary)
             case ExprTypes.Variable: return this.printVariableExpr(expr as Variable)
             case ExprTypes.Assign: return this.printAssignExpr(expr as Assign)
+            case ExprTypes.Logical: return this.printLogicalExpr(expr as Logical)
+            case ExprTypes.Call: return this.printCallExpr(expr as Call)
         }
+    }
+
+    printCallExpr(expr: Call): string {
+        return this.parenthesize("call", expr.callee, ...expr.args)
+    }
+
+    printLogicalExpr(expr: Logical): string {
+        return this.parenthesize(expr.operator.lexeme, expr.left, expr.right)
     }
 
     printAssignExpr(expr: Assign): string {

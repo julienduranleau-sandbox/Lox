@@ -1,3 +1,5 @@
+console.log(performance.now())
+
 import Lox from './Lox.js'
 
 let lox = new Lox()

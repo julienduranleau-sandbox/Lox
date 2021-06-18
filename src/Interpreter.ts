@@ -1,13 +1,29 @@
-import { Expr, Binary, Grouping, Literal, Unary, ExprTypes, Variable, Assign } from "./Expr.js"
+import { Expr, Binary, Grouping, Literal, Unary, ExprTypes, Variable, Assign, Logical, Call } from "./Expr.js"
 import TokenType from "./TokenType.js"
 import Token from "./Token.js"
 import ErrorHandler, { LoxRuntimeError } from "./ErrorHandler.js"
-import { Block, Expression, Print, Stmt, StmtTypes, Var } from "./Stmt.js"
+import { Block, Expression, Fn, If, Print, Return, Stmt, StmtTypes, Var, While } from "./Stmt.js"
 import Environment from "./Environment.js"
+import Callable from "./Callable.js"
+import LoxFn from "./LoxFn.js"
 
 export default class Interpreter {
 
-    environment: Environment = new Environment()
+    globals: Environment = new Environment()
+    environment: Environment = this.globals
+
+    constructor() {
+        const clockFn: Callable = {
+            arity() { return 0 },
+            call(interpreter: Interpreter, args: any[]) {
+                return performance.now() / 1000
+            },
+            toString() {
+                return "<native function>"
+            }
+        }
+        this.globals.define("clock", clockFn)
+    }
 
     interpret(statements: Stmt[], errorHandler: ErrorHandler): any {
         try {
@@ -25,6 +41,10 @@ export default class Interpreter {
             case StmtTypes.Print: return this.executePrintStmt(statement as Print)
             case StmtTypes.Var: return this.executeVarStmt(statement as Var)
             case StmtTypes.Block: return this.executeBlockStmt(statement as Block)
+            case StmtTypes.If: return this.executeIfStmt(statement as If)
+            case StmtTypes.While: return this.executeWhileStmt(statement as While)
+            case StmtTypes.Fn: return this.executeFnStmt(statement as Fn)
+            case StmtTypes.Return: return this.executeReturnStmt(statement as Return)
         }
     }
 
@@ -35,10 +55,12 @@ export default class Interpreter {
 
     executePrintStmt(stmt: Print): null {
         let value = this.stringify(this.evaluate(stmt.expression))
-        let htmlTag = document.createElement("p")
-        htmlTag.classList.add("print")
-        htmlTag.textContent = value
-        document.body.append(htmlTag)
+        // let htmlTag = document.createElement("p")
+        // htmlTag.classList.add("print")
+        // htmlTag.textContent = value
+        // document.body.append(htmlTag)
+
+        console.log(value)
         return null
     }
 
@@ -51,6 +73,38 @@ export default class Interpreter {
 
         this.environment.define(stmt.name.lexeme, value)
         return null
+    }
+
+    executeIfStmt(stmt: If): null {
+        if (this.isTruthy(this.evaluate(stmt.condition))) {
+            this.execute(stmt.thenBranch)
+        } else if (stmt.elseBranch !== null) {
+            this.execute(stmt.elseBranch)
+        }
+
+        return null
+    }
+
+    executeWhileStmt(stmt: While): null {
+        while (this.isTruthy(this.evaluate(stmt.condition))) {
+            this.execute(stmt.body)
+        }
+        return null
+    }
+
+    executeFnStmt(stmt: Fn): null {
+        this.environment.define(stmt.name.lexeme, new LoxFn(stmt))
+        return null
+    }
+
+    executeReturnStmt(stmt: Return): null {
+        let value = null
+
+        if (stmt.value !== null) {
+            value = this.evaluate(stmt.value)
+        }
+
+        throw value
     }
 
     executeBlockStmt(stmt: Block): null {
@@ -83,7 +137,38 @@ export default class Interpreter {
             case ExprTypes.Unary: return this.evaluateUnaryExpr(expr as Unary)
             case ExprTypes.Variable: return this.evaluateVariableExpr(expr as Variable)
             case ExprTypes.Assign: return this.evaluateAssignExpr(expr as Assign)
+            case ExprTypes.Logical: return this.evaluateLogicalExpr(expr as Logical)
+            case ExprTypes.Call: return this.evaluateCallExpr(expr as Call)
         }
+    }
+
+    evaluateCallExpr(expr: Call): any {
+        let callee = this.evaluate(expr.callee)
+        let args = expr.args.map(arg => this.evaluate(arg))
+
+        if (typeof callee.call === "function") {
+            let fn: Callable = callee
+
+            if (args.length !== fn.arity()) {
+                throw new LoxRuntimeError(expr.paren, `Expected ${fn.arity()} arguments but got ${args.length}.`)
+            }
+
+            return fn.call(this, args)
+        } else {
+            throw new LoxRuntimeError(expr.paren, "Can only call functions and classes.")
+        }
+    }
+
+    evaluateLogicalExpr(expr: Logical): any {
+        let left = this.evaluate(expr.left)
+
+        if (expr.operator.type === TokenType.OR) {
+            if (this.isTruthy(left)) return left
+        } else {
+            if (!this.isTruthy(left)) return left
+        }
+
+        return this.evaluate(expr.right)
     }
 
     evaluateAssignExpr(expr: Assign): any {

@@ -44,7 +44,7 @@ export default class Lox {
         if (this.errorHandler.hadError) return
 
         // === Print AST
-        let astDebug = new AstPrinter().print(statements)
+        let astDebug = new AstPrinter().prettyPrint(statements)
         console.log(astDebug)
 
 
